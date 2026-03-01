@@ -4,10 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>เข้าสู่ระบบ | ระบบยืม-คืนอุปกรณ์กีฬา</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
+    
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.3.4/jquery-confirm.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.3.4/jquery-confirm.min.js"></script>
+    
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style> body { font-family: 'Kanit', sans-serif; } </style>
 </head>
@@ -35,74 +39,74 @@
     </div>
 
     <script>
-$(document).ready(function() {
-    $('#loginForm').on('submit', function(e) {
-        e.preventDefault(); 
-        
-        let btn = $('#btnSubmit');
-        let originalContent = btn.html();
+        $(document).ready(function() {
+            $('#loginForm').on('submit', function(e) {
+                e.preventDefault(); 
+                
+                let username = $('#username').val();
+                let password = $('#password').val();
+                let btn = $('#btnSubmit');
+                let originalContent = btn.html();
 
-        // 1. เปลี่ยนสถานะปุ่มเป็นกำลังโหลด (UX: ให้ผู้ใช้รู้ว่าระบบกำลังทำงาน)
-        btn.html('<span class="flex items-center">กำลังตรวจสอบ...</span>')
-           .prop('disabled', true)
-           .addClass('opacity-70 cursor-not-allowed');
+                // เปลี่ยนสถานะปุ่มเป็นกำลังโหลด
+                btn.html('กำลังตรวจสอบ...').prop('disabled', true).addClass('opacity-70 cursor-not-allowed');
 
-        // 2. ส่งข้อมูลไปยังไฟล์ Backend (PHP) ด้วย AJAX
-        $.ajax({
-            type: 'POST',
-            url: 'services/auth_login.php', // ตรวจสอบชื่อไฟล์ให้ตรงกับที่คุณสร้างไว้
-            data: $('#loginForm').serialize(), // ส่งค่าจาก input ทั้งหมดใน form
-            dataType: 'json',
-            success: function(response) {
-                // คืนค่าปุ่มกลับเป็นปกติ
-                btn.html(originalContent).prop('disabled', false).removeClass('opacity-70 cursor-not-allowed');
+                // ส่งข้อมูลด้วย AJAX ไปที่ Backend
+                $.ajax({
+                    url: 'api/auth.php', // 🚨 อย่าลืมเช็ค Path ให้ตรงกับโฟลเดอร์ที่เก็บไฟล์ auth.php
+                    type: 'POST',
+                    data: {
+                        username: username,
+                        password: password
+                    },
+                    dataType: 'json',
+                    success: function(response) {
+                        // คืนค่าปุ่มกลับมาเหมือนเดิม
+                        btn.html(originalContent).prop('disabled', false).removeClass('opacity-70 cursor-not-allowed');
 
-                if(response.status === 'success') {
-                    // กรณี Login สำเร็จ
-                    $.confirm({
-                        title: '🎉 สำเร็จ!',
-                        content: response.message,
-                        type: 'green',
-                        theme: 'modern',
-                        buttons: { 
-                            ok: { 
-                                text: 'ไปที่ Dashboard', 
-                                btnClass: 'btn-green',
-                                action: function() {
-                                    window.location.href = 'dashboard.php'; // ไปที่หน้าจัดการ
+                        if (response.status === 'success') {
+                            $.confirm({
+                                title: '🎉 สำเร็จ!', 
+                                content: response.message, 
+                                type: 'green', 
+                                theme: 'modern',
+                                autoClose: 'ok|2000', // ปิดอัตโนมัติและไปหน้าใหม่ใน 2 วินาที
+                                buttons: { 
+                                    ok: { 
+                                        text: 'ไปที่ Dashboard', 
+                                        btnClass: 'btn-green',
+                                        action: function() {
+                                            // เมื่อ Login ผ่าน ให้พาไปหน้า dashboard.php
+                                            window.location.href = 'dashboard.php'; 
+                                        }
+                                    } 
                                 }
-                            } 
+                            });
+                        } else {
+                            // แจ้งเตือนเมื่อรหัสผิด หรือไม่พบผู้ใช้
+                            $.confirm({
+                                title: '🚨 ข้อผิดพลาด!', 
+                                content: response.message, 
+                                type: 'red', 
+                                theme: 'modern',
+                                buttons: { tryAgain: { text: 'ลองอีกครั้ง', btnClass: 'btn-red' } }
+                            });
                         }
-                    });
-                } else {
-                    // กรณี Login ไม่สำเร็จ (User/Password ผิด)
-                    $.confirm({
-                        title: '🚨 ข้อผิดพลาด!',
-                        content: response.message,
-                        type: 'red',
-                        theme: 'modern',
-                        buttons: { 
-                            tryAgain: { 
-                                text: 'ลองอีกครั้ง', 
-                                btnClass: 'btn-red' 
-                            } 
-                        }
-                    });
-                }
-            },
-            error: function(xhr, status, error) {
-                // กรณีเกิด Error ที่ Server หรือ Path ไฟล์ผิด
-                btn.html(originalContent).prop('disabled', false).removeClass('opacity-70 cursor-not-allowed');
-                $.alert({
-                    title: '🚨 ระบบขัดข้อง',
-                    content: 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ (Error: ' + error + ')',
-                    type: 'red'
+                    },
+                    error: function(xhr, status, error) {
+                        btn.html(originalContent).prop('disabled', false).removeClass('opacity-70 cursor-not-allowed');
+                        // แจ้งเตือนกรณีไฟล์ Backend พัง หรือ Path ผิด
+                        $.confirm({
+                            title: '🚨 ระบบขัดข้อง!', 
+                            content: 'ไม่สามารถติดต่อเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่อ', 
+                            type: 'red', 
+                            theme: 'modern',
+                            buttons: { tryAgain: { text: 'ตกลง', btnClass: 'btn-red' } }
+                        });
+                    }
                 });
-            }
+            });
         });
-    });
-});
-
     </script>
 </body>
 </html>
